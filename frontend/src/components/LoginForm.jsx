@@ -14,6 +14,9 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
+// API base URL - use environment variable or fallback to localhost
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const LoginForm = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -22,6 +25,7 @@ const LoginForm = () => {
     password: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -36,14 +40,55 @@ const LoginForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    console.log('Attempting login with:', formData);
+    console.log('API URL:', API_URL);
+    
     try {
-      const response = await axios.post('/api/auth/login', formData);
+      // For Vercel deployment without backend, just bypass authentication
+      if (window.location.hostname.includes('vercel.app')) {
+        console.log('Vercel deployment detected - bypassing authentication');
+        localStorage.setItem('token', 'demo-token');
+        localStorage.setItem('user', JSON.stringify({
+          id: '1',
+          username: formData.username || 'demo-user',
+          role: 'admin',
+          name: 'Demo User'
+        }));
+        navigate('/dashboard');
+        return;
+      }
+      
+      // Real API call for local development
+      const response = await axios.post(`${API_URL}/api/auth/login`, formData);
+      console.log('Login response:', response.data);
+      
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
       navigate('/dashboard');
     } catch (error) {
-      setError(error.response?.data?.message || 'Login failed');
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Login failed. Check console for details.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // For debugging purposes
+  const handleTestLogin = () => {
+    // Just for testing - navigate directly
+    console.log('Test login - bypassing authentication');
+    localStorage.setItem('token', 'demo-token');
+    localStorage.setItem('user', JSON.stringify({
+      id: '1',
+      username: 'demo-user',
+      role: 'admin',
+      name: 'Demo User'
+    }));
+    navigate('/dashboard');
   };
 
   return (
@@ -99,8 +144,20 @@ const LoginForm = () => {
           color="primary"
           fullWidth
           sx={{ mt: 3 }}
+          disabled={loading}
         >
-          {t('submit')}
+          {loading ? 'Logging in...' : t('submit')}
+        </Button>
+        
+        {/* For development testing only */}
+        <Button
+          variant="outlined"
+          color="secondary"
+          fullWidth
+          sx={{ mt: 2 }}
+          onClick={handleTestLogin}
+        >
+          Test Login (Bypass Auth)
         </Button>
       </form>
     </Paper>

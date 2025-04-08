@@ -2,26 +2,22 @@
   "version": 2,
   "buildCommand": "cd frontend && npm install && CI=false npm run build",
   "outputDirectory": "frontend/build",
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "buildCommand": "CI=false npm run build"
-      }
-    },
-    {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
-    }
-  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/backend/server.js" },
-    { "source": "/(.*)", "destination": "/frontend/build/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
   ],
   "env": {
     "NODE_ENV": "production",
-    "CI": "false"
+    "CI": "false",
+    "REACT_APP_API_URL": "https://your-backend-url.vercel.app"
   }
 } 
