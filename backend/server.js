@@ -30,6 +30,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/proof', proofSubmissionRoutes);
 
+// Health check route
+app.get('/api/healthcheck', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'API is running' });
+});
+
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
