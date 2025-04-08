@@ -21,7 +21,7 @@ const theme = createTheme({
 });
 
 function App() {
-  const { t } = useTranslation();
+  useTranslation();
 
   return (
     <ThemeProvider theme={theme}>
