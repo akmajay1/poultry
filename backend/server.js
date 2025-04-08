@@ -40,7 +40,22 @@ app.use('/api/proof', proofSubmissionRoutes);
 
 // Health check route
 app.get('/api/healthcheck', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'API is running' });
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'API is running',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Root endpoint for easy verification
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Pratap Poultry Farm API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: ['/api/auth', '/api/proof', '/api/proofs', '/api/invoices', '/api/business']
+  });
 });
 
 // Serve uploaded files
@@ -65,28 +80,66 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(async () => {
-  console.log('Connected to MongoDB');
-  // Initialize default users
-  await initializeDefaultUsers();
-  // Initialize fraud detection system
-  require('./utils/reportScheduler')();
-  // Create default admin user if it doesn't exist
-  require('./utils/createDefaultUsers')();
-})
-.catch(err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
-});
+// Function to connect to MongoDB
+const connectDB = async () => {
+  try {
+    // Print connection string (without password) for debugging
+    const dbConnString = process.env.MONGODB_URI;
+    const redactedConnString = dbConnString ? 
+      dbConnString.replace(/:([^:@]+)@/, ':****@') : 
+      'No connection string found';
+    
+    console.log(`Attempting MongoDB connection to: ${redactedConnString}`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    console.log('Connected to MongoDB');
+    
+    // Initialize default users
+    try {
+      await initializeDefaultUsers();
+      console.log('Default users initialized');
+    } catch (err) {
+      console.error('Error initializing default users:', err);
+    }
+    
+    // Initialize fraud detection system
+    try {
+      require('./utils/reportScheduler')();
+      console.log('Report scheduler initialized');
+    } catch (err) {
+      console.error('Error initializing report scheduler:', err);
+    }
+    
+    // Create default admin user if it doesn't exist
+    try {
+      require('./utils/createDefaultUsers')();
+      console.log('Default admin user checked/created');
+    } catch (err) {
+      console.error('Error creating default users:', err);
+    }
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    // Don't exit the process in production, retry instead
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    } else {
+      console.log('Will retry connection in 5 seconds...');
+      setTimeout(connectDB, 5000);
+    }
+  }
+};
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Connect to MongoDB after server starts
+  connectDB();
 });
 
 module.exports = app; // For testing purposes
