@@ -1,21 +1,61 @@
 const ProofSubmission = require('../models/ProofSubmission');
 const FraudDetection = require('../models/FraudDetection');
-const phash = require('phash');
+const crypto = require('crypto');
 const ExifParser = require('exif-parser');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 
-// Generate perceptual hash
-const generatePerceptualHash = async (imageBuffer) => {
+// Generate perceptual hash using Sharp
+const generateImageHash = async (imageBuffer) => {
   if (!imageBuffer || imageBuffer.length === 0) {
     throw new Error('Invalid image buffer');
   }
   try {
-    const hash = await phash.compute(imageBuffer);
-    return hash.toString('hex');
+    // Resize image to a small square for consistent hashing
+    const resizedImage = await sharp(imageBuffer)
+      .resize(8, 8, { fit: 'fill' })
+      .greyscale()
+      .raw()
+      .toBuffer();
+      
+    // Compute average pixel value
+    let sum = 0;
+    for (let i = 0; i < resizedImage.length; i++) {
+      sum += resizedImage[i];
+    }
+    const avg = sum / resizedImage.length;
+    
+    // Generate binary hash based on comparison to average
+    let hash = '';
+    for (let i = 0; i < resizedImage.length; i++) {
+      hash += resizedImage[i] >= avg ? '1' : '0';
+    }
+    
+    // Convert binary string to hexadecimal for storage
+    const binaryChunks = hash.match(/.{1,4}/g) || [];
+    const hexHash = binaryChunks.map(chunk => parseInt(chunk, 2).toString(16)).join('');
+    
+    return hexHash;
   } catch (error) {
-    throw new Error(`Failed to generate perceptual hash: ${error.message}`);
+    throw new Error(`Failed to generate perceptual image hash: ${error.message}`);
   }
+};
+
+// Helper function for calculating Hamming distance between two hashes
+const calculateHashSimilarity = (hash1, hash2) => {
+  // Convert hex strings to binary
+  const binary1 = hash1.split('').map(h => parseInt(h, 16).toString(2).padStart(4, '0')).join('');
+  const binary2 = hash2.split('').map(h => parseInt(h, 16).toString(2).padStart(4, '0')).join('');
+  
+  // Calculate Hamming distance (count of different bits)
+  let distance = 0;
+  for (let i = 0; i < binary1.length; i++) {
+    if (binary1[i] !== binary2[i]) distance++;
+  }
+  
+  // Calculate similarity (0 to 1)
+  return 1 - (distance / binary1.length);
 };
 
 // Extract EXIF data
@@ -41,12 +81,23 @@ const isValidTimestamp = (timestamp) => {
 const findSimilarSubmissions = async (imageHash, userId, batchId) => {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   
-  return await ProofSubmission.find({
-    imageHash,
+  // Find submissions from the last 24 hours for this user and batch
+  const recentSubmissions = await ProofSubmission.find({
     user: userId,
     batchId,
     'metadata.timestamp': { $gte: twentyFourHoursAgo }
   });
+  
+  // Check for similar hashes (similarity threshold of 0.85 or 85%)
+  const similarityThreshold = 0.85;
+  const similarSubmissions = recentSubmissions.filter(submission => {
+    const similarity = calculateHashSimilarity(imageHash, submission.imageHash);
+    // Attach similarity score to submission for later use
+    submission.similarityScore = similarity;
+    return similarity >= similarityThreshold;
+  });
+  
+  return similarSubmissions;
 };
 
 // Validate image file
@@ -74,7 +125,7 @@ const submitProof = async (req, res) => {
 
     const { batchId, chicksCount, notes } = req.body;
     const imageBuffer = fs.readFileSync(req.file.path);
-    const imageHash = await generatePerceptualHash(imageBuffer);
+    const imageHash = await generateImageHash(imageBuffer);
     const exifData = extractEXIFData(imageBuffer);
     
     // Validate required fields
@@ -96,12 +147,7 @@ const submitProof = async (req, res) => {
     }
 
     // Check for similar submissions
-    const similarSubmissions = await findSimilarSubmissions({
-      perceptualHash: imageHash,
-      exifData: exifData,
-      userId: req.user._id,
-      batchId: batchId
-    });
+    const similarSubmissions = await findSimilarSubmissions(imageHash, req.user._id, batchId);
     
     // Create proof submission
     const submission = await ProofSubmission.create({
@@ -132,7 +178,7 @@ const submitProof = async (req, res) => {
         flagType: 'duplicate-image',
         similarSubmissions: similarSubmissions.map(sub => ({
           submission: sub._id,
-          similarityScore: 1.0
+          similarityScore: sub.similarityScore || 1.0
         })),
         details: `Found ${similarSubmissions.length} similar submissions within 24 hours`,
         status: 'pending'
