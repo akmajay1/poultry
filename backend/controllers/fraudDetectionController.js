@@ -153,11 +153,11 @@ const generateDailyReport = async () => {
     detectionDate: { $gte: startDate }
   }).populate('user proofSubmission');
 
-  const reportData = fraudCases.map(fraudCase => ({
-    userId: case.user._id,
-    submissionId: case.proofSubmission._id,
-    detectionType: case.matchedSubmissions.map(m => m.type).join(', '),
-    status: case.status
+  const reportData = fraudCases.map(fraudEntry => ({
+    userId: fraudEntry.user._id,
+    submissionId: fraudEntry.proofSubmission._id,
+    detectionType: fraudEntry.matchedSubmissions.map(m => m.type).join(', '),
+    status: fraudEntry.status
   }));
 
   return {
