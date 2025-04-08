@@ -1,0 +1,26 @@
+{
+  "name": "pratap-poultry-farm",
+  "version": "1.0.0",
+  "description": "A comprehensive dashboard system for Shree Pratap Poultry Farm",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "poultry",
+    "farm",
+    "dashboard",
+    "fraud-detection",
+    "image-verification"
+  ],
+  "author": "Shree Pratap Poultry Farm",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

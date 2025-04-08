@@ -1,0 +1,15 @@
+{
+  "fraud_reports": "धोखाधड़ी रिपोर्ट",
+  "total_cases": "कुल मामले",
+  "image_reuse": "छवि पुन: उपयोग",
+  "metadata_match": "मेटाडेटा मिलान",
+  "hash_matches": "छवि हैश मिलान",
+  "exif_matches": "EXIF समानता",
+  "fraud_cases": "संदिग्ध मामले",
+  "detection_type": "पहचान प्रकार",
+  "submission_date": "जमा तिथि",
+  "status": "स्थिति",
+  "pending review": "समीक्षा लंबित",
+  "generated": "तैयार",
+  "user": "उपयोगकर्ता"
+}
