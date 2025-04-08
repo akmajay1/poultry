@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Box,
   Container,
   Grid,
   Paper,
   Typography,
   Button,
   Card,
-  CardContent,
-  CardActions
+  CardContent
 } from '@mui/material';
 import axios from 'axios';
 
@@ -102,4 +100,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

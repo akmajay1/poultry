@@ -7,8 +7,15 @@ const fs = require('fs');
 
 // Generate perceptual hash
 const generatePerceptualHash = async (imageBuffer) => {
-  const hash = await phash.compute(imageBuffer);
-  return hash.toString('hex');
+  if (!imageBuffer || imageBuffer.length === 0) {
+    throw new Error('Invalid image buffer');
+  }
+  try {
+    const hash = await phash.compute(imageBuffer);
+    return hash.toString('hex');
+  } catch (error) {
+    throw new Error(`Failed to generate perceptual hash: ${error.message}`);
+  }
 };
 
 // Extract EXIF data
@@ -42,6 +49,20 @@ const findSimilarSubmissions = async (imageHash, userId, batchId) => {
   });
 };
 
+// Validate image file
+const validateImageFile = (file) => {
+  const allowedTypes = ['image/jpeg', 'image/png'];
+  const maxSize = 5 * 1024 * 1024; // 5MB
+
+  if (!allowedTypes.includes(file.mimetype)) {
+    throw new Error('Invalid file type. Only JPEG and PNG images are allowed.');
+  }
+
+  if (file.size > maxSize) {
+    throw new Error('File size exceeds limit. Maximum size is 5MB.');
+  }
+};
+
 // Submit proof with fraud detection
 const submitProof = async (req, res) => {
   try {
@@ -49,14 +70,29 @@ const submitProof = async (req, res) => {
       return res.status(400).json({ message: 'No image provided' });
     }
 
+    validateImageFile(req.file);
+
     const { batchId, chicksCount, notes } = req.body;
     const imageBuffer = fs.readFileSync(req.file.path);
     const imageHash = await generatePerceptualHash(imageBuffer);
     const exifData = extractEXIFData(imageBuffer);
     
+    // Validate required fields
+    if (!batchId || !chicksCount || !req.body.timestamp || 
+        !req.body.latitude || !req.body.longitude) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
     // Validate timestamp
     if (!isValidTimestamp(req.body.timestamp)) {
       return res.status(400).json({ message: 'Invalid timestamp' });
+    }
+
+    // Validate coordinates
+    if (isNaN(req.body.latitude) || isNaN(req.body.longitude) ||
+        req.body.latitude < -90 || req.body.latitude > 90 ||
+        req.body.longitude < -180 || req.body.longitude > 180) {
+      return res.status(400).json({ message: 'Invalid coordinates' });
     }
 
     // Check for similar submissions
