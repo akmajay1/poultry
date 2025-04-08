@@ -14,7 +14,9 @@ import {
   Button,
   AppBar,
   Toolbar,
-  IconButton
+  IconButton,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { Menu as MenuIcon, ExitToApp as LogoutIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -23,72 +25,57 @@ import axios from 'axios';
 // API base URL - use environment variable or fallback to localhost
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// Mock data for demo mode
-const MOCK_REPORTS = [
-  {
-    id: 1,
-    user: 'farmer123',
-    detectionType: 'Image similarity (85%)',
-    submissionDate: '2023-04-05',
-    locationValidation: false,
-    status: 'pending review'
-  },
-  {
-    id: 2,
-    user: 'farmer456',
-    detectionType: 'Location mismatch',
-    submissionDate: '2023-04-06',
-    locationValidation: false,
-    status: 'confirmed'
-  },
-  {
-    id: 3,
-    user: 'farmer789',
-    detectionType: 'Metadata match (92%)',
-    submissionDate: '2023-04-07',
-    locationValidation: true,
-    status: 'pending review'
-  }
-];
-
-const FraudReports = ({ isDemo = false }) => {
+const FraudReports = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchReports = async () => {
-      // Use mock data in demo mode
-      if (isDemo || window.location.hostname.includes('vercel.app')) {
-        console.log('Demo mode: Using mock fraud reports');
-        setReports(MOCK_REPORTS);
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
+      setError(null);
 
       try {
         const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/');
+          return;
+        }
+        
         const response = await axios.get(`${API_URL}/api/proof/fraud-reports`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        
         setReports(response.data);
       } catch (error) {
         console.error('Error fetching fraud reports:', error);
-        // Fallback to mock data on error
-        setReports(MOCK_REPORTS);
+        setError('Failed to load fraud reports. Please try again.');
+        
+        // If unauthorized (401), redirect to login
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchReports();
-  }, [isDemo]);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/');
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
   return (
@@ -116,49 +103,66 @@ const FraudReports = ({ isDemo = false }) => {
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
         {loading ? (
-          <Typography>Loading...</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        ) : reports.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="h6">No fraud reports found</Typography>
+            <Typography variant="body1" sx={{ mt: 1 }}>
+              There are currently no fraud detection reports in the system.
+            </Typography>
+          </Paper>
         ) : (
-          <>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>{t('user')}</TableCell>
-                    <TableCell>{t('detection_type')}</TableCell>
-                    <TableCell>{t('submission_date')}</TableCell>
-                    <TableCell>{t('location_validation')}</TableCell>
-                    <TableCell>{t('status')}</TableCell>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t('user')}</TableCell>
+                  <TableCell>{t('detection_type')}</TableCell>
+                  <TableCell>{t('submission_date')}</TableCell>
+                  <TableCell>{t('location_validation')}</TableCell>
+                  <TableCell>{t('status')}</TableCell>
+                  <TableCell>{t('actions')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {reports.map((report) => (
+                  <TableRow key={report._id}>
+                    <TableCell>{report.userId}</TableCell>
+                    <TableCell>{report.flagType}</TableCell>
+                    <TableCell>{formatDate(report.createdAt)}</TableCell>
+                    <TableCell>
+                      {report.locationValid 
+                        ? <span style={{ color: 'green' }}>{t('location_valid')}</span> 
+                        : <span style={{ color: 'red' }}>{t('location_mismatch')}</span>}
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ 
+                        color: report.status === 'pending' ? 'orange' : 
+                               report.status === 'confirmed' ? 'red' : 'green'
+                      }}>
+                        {report.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        size="small" 
+                        variant="outlined"
+                        onClick={() => alert('Report details view coming soon!')}
+                      >
+                        {t('view_details')}
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {reports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell>{report.user}</TableCell>
-                      <TableCell>{report.detectionType}</TableCell>
-                      <TableCell>{report.submissionDate}</TableCell>
-                      <TableCell>
-                        {report.locationValidation 
-                          ? <span style={{ color: 'green' }}>{t('location_valid')}</span> 
-                          : <span style={{ color: 'red' }}>{t('location_mismatch')}</span>}
-                      </TableCell>
-                      <TableCell>{report.status}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {isDemo && (
-              <Paper sx={{ p: 3, mt: 2, bgcolor: '#fff9c4' }}>
-                <Typography variant="h6" color="primary">
-                  Demo Mode Active
-                </Typography>
-                <Typography paragraph>
-                  This is a demonstration with mock data. In a production environment, this would display actual fraud detection reports from your system.
-                </Typography>
-              </Paper>
-            )}
-          </>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </Container>
     </Box>

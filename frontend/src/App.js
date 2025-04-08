@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import FraudReports from './components/FraudReports';
+import ProofSubmissionForm from './components/ProofSubmissionForm';
 
 const theme = createTheme({
   palette: {
@@ -17,6 +18,12 @@ const theme = createTheme({
     secondary: {
       main: '#dc004e',
     },
+    background: {
+      default: '#f5f5f5',
+    }
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
   },
 });
 
@@ -33,27 +40,18 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   useTranslation();
-  const [isVercelDeployment, setIsVercelDeployment] = useState(false);
-
-  useEffect(() => {
-    // Check if running on Vercel
-    if (window.location.hostname.includes('vercel.app')) {
-      setIsVercelDeployment(true);
-      console.log('Running on Vercel - demo mode enabled');
-    }
-  }, []);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/" element={<LandingPage isDemo={isVercelDeployment} />} />
+          <Route path="/" element={<LandingPage />} />
           <Route 
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Dashboard isDemo={isVercelDeployment} />
+                <Dashboard />
               </ProtectedRoute>
             } 
           />
@@ -61,7 +59,15 @@ function App() {
             path="/fraud-reports" 
             element={
               <ProtectedRoute>
-                <FraudReports isDemo={isVercelDeployment} />
+                <FraudReports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/submit-proof" 
+            element={
+              <ProtectedRoute>
+                <ProofSubmissionForm />
               </ProtectedRoute>
             } 
           />

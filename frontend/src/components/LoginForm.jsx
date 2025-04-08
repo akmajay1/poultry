@@ -10,7 +10,8 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Select
+  Select,
+  Alert
 } from '@mui/material';
 import axios from 'axios';
 
@@ -43,27 +44,8 @@ const LoginForm = () => {
     setLoading(true);
     setError('');
     
-    console.log('Attempting login with:', formData);
-    console.log('API URL:', API_URL);
-    
     try {
-      // For Vercel deployment without backend, just bypass authentication
-      if (window.location.hostname.includes('vercel.app')) {
-        console.log('Vercel deployment detected - bypassing authentication');
-        localStorage.setItem('token', 'demo-token');
-        localStorage.setItem('user', JSON.stringify({
-          id: '1',
-          username: formData.username || 'demo-user',
-          role: 'admin',
-          name: 'Demo User'
-        }));
-        navigate('/dashboard');
-        return;
-      }
-      
-      // Real API call for local development
       const response = await axios.post(`${API_URL}/api/auth/login`, formData);
-      console.log('Login response:', response.data);
       
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -71,24 +53,10 @@ const LoginForm = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Login failed. Check console for details.');
+      setError(error.response?.data?.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // For debugging purposes
-  const handleTestLogin = () => {
-    // Just for testing - navigate directly
-    console.log('Test login - bypassing authentication');
-    localStorage.setItem('token', 'demo-token');
-    localStorage.setItem('user', JSON.stringify({
-      id: '1',
-      username: 'demo-user',
-      role: 'admin',
-      name: 'Demo User'
-    }));
-    navigate('/dashboard');
   };
 
   return (
@@ -108,14 +76,18 @@ const LoginForm = () => {
         </FormControl>
       </Box>
 
-      <Typography variant="h5" component="h2" gutterBottom>
+      <Typography variant="h5" component="h2" gutterBottom align="center">
         {t('login')}
+      </Typography>
+      
+      <Typography variant="subtitle1" align="center" sx={{ mb: 3, color: 'text.secondary' }}>
+        Pratap Poultry Farm Management
       </Typography>
 
       {error && (
-        <Typography color="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </Typography>
+        </Alert>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -146,18 +118,7 @@ const LoginForm = () => {
           sx={{ mt: 3 }}
           disabled={loading}
         >
-          {loading ? 'Logging in...' : t('submit')}
-        </Button>
-        
-        {/* For development testing only */}
-        <Button
-          variant="outlined"
-          color="secondary"
-          fullWidth
-          sx={{ mt: 2 }}
-          onClick={handleTestLogin}
-        >
-          Test Login (Bypass Auth)
+          {loading ? 'Logging in...' : t('login')}
         </Button>
       </form>
     </Paper>

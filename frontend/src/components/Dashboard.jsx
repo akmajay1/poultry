@@ -11,24 +11,17 @@ import {
   AppBar,
   Toolbar,
   IconButton,
-  Box
+  Box,
+  CircularProgress
 } from '@mui/material';
-import { Menu as MenuIcon, ExitToApp as LogoutIcon } from '@mui/icons-material';
+import { Menu as MenuIcon, ExitToApp as LogoutIcon, AddAPhoto as AddPhotoIcon, Assessment as ReportIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // API base URL - use environment variable or fallback to localhost
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// Mock data for demo mode
-const MOCK_DATA = {
-  totalBatches: 24,
-  activeBatches: 12,
-  totalChicks: 5600,
-  mortalityRate: 3.2
-};
-
-const Dashboard = ({ isDemo = false }) => {
+const Dashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -37,36 +30,55 @@ const Dashboard = ({ isDemo = false }) => {
     totalChicks: 0,
     mortalityRate: 0
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      // If demo mode is enabled, use mock data
-      if (isDemo || window.location.hostname.includes('vercel.app')) {
-        console.log('Demo mode: Using mock data');
-        setStats(MOCK_DATA);
-        return;
-      }
-
+      setLoading(true);
+      setError(null);
+      
       try {
         const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/');
+          return;
+        }
+        
         const response = await axios.get(`${API_URL}/api/dashboard/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(response.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback to mock data on error
-        setStats(MOCK_DATA);
+        setError('Failed to load dashboard data. Please try again.');
+        
+        // If unauthorized (401), redirect to login
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/');
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [isDemo]);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/');
+  };
+
+  const handleSubmitProof = () => {
+    navigate('/submit-proof');
+  };
+  
+  const handleViewReports = () => {
+    navigate('/fraud-reports');
   };
 
   return (
@@ -92,82 +104,91 @@ const Dashboard = ({ isDemo = false }) => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
-        <Grid container spacing={3}>
-          {/* Stats Overview */}
-          <Grid item xs={12} md={6} lg={3}>
-            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" gutterBottom>
-                {t('total_batches')}
-              </Typography>
-              <Typography variant="h4">{stats.totalBatches}</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" gutterBottom>
-                {t('active_batches')}
-              </Typography>
-              <Typography variant="h4">{stats.activeBatches}</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" gutterBottom>
-                {t('total_chicks')}
-              </Typography>
-              <Typography variant="h4">{stats.totalChicks}</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" gutterBottom>
-                {t('mortality_rate')}
-              </Typography>
-              <Typography variant="h4">{stats.mortalityRate}%</Typography>
-            </Paper>
-          </Grid>
-
-          {/* Quick Actions */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="error">{error}</Typography>
+            <Button 
+              variant="contained" 
+              sx={{ mt: 2 }}
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </Paper>
+        ) : (
+          <Grid container spacing={3}>
+            {/* Stats Overview */}
+            <Grid item xs={12} md={6} lg={3}>
+              <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="h6" gutterBottom>
-                  {t('quick_actions')}
+                  {t('total_batches')}
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid item>
-                    <Button variant="contained" color="primary">
-                      {t('submit_proof')}
-                    </Button>
-                  </Grid>
-                  <Grid item>
-                    <Button 
-                      variant="contained" 
-                      color="secondary"
-                      onClick={() => navigate('/fraud-reports')}
-                    >
-                      {t('view_reports')}
-                    </Button>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {isDemo && (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 3, mt: 2, bgcolor: '#fff9c4' }}>
-                <Typography variant="h6" color="primary">
-                  Demo Mode Active
-                </Typography>
-                <Typography paragraph>
-                  This is a demonstration with mock data. In a production environment, this dashboard would display real-time 
-                  data from your poultry farm operations.
-                </Typography>
+                <Typography variant="h4">{stats.totalBatches}</Typography>
               </Paper>
             </Grid>
-          )}
-        </Grid>
+            <Grid item xs={12} md={6} lg={3}>
+              <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="h6" gutterBottom>
+                  {t('active_batches')}
+                </Typography>
+                <Typography variant="h4">{stats.activeBatches}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={6} lg={3}>
+              <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="h6" gutterBottom>
+                  {t('total_chicks')}
+                </Typography>
+                <Typography variant="h4">{stats.totalChicks}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={6} lg={3}>
+              <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="h6" gutterBottom>
+                  {t('mortality_rate')}
+                </Typography>
+                <Typography variant="h4">{stats.mortalityRate}%</Typography>
+              </Paper>
+            </Grid>
+
+            {/* Quick Actions */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    {t('quick_actions')}
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item>
+                      <Button 
+                        variant="contained" 
+                        color="primary"
+                        onClick={handleSubmitProof}
+                        startIcon={<AddPhotoIcon />}
+                      >
+                        {t('submit_proof')}
+                      </Button>
+                    </Grid>
+                    <Grid item>
+                      <Button 
+                        variant="contained" 
+                        color="secondary"
+                        onClick={handleViewReports}
+                        startIcon={<ReportIcon />}
+                      >
+                        {t('view_reports')}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
       </Container>
     </Box>
   );
